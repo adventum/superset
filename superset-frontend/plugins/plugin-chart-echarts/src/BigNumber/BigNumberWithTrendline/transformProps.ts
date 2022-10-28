@@ -29,10 +29,11 @@ import {
   getXAxisLabel,
 } from '@superset-ui/core';
 import { EChartsCoreOption, graphic } from 'echarts';
+import { sum } from 'lodash';
 import {
   BigNumberDatum,
   BigNumberWithTrendlineChartProps,
-  TimeSeriesDatum,
+  TimeSeriesDatum
 } from '../types';
 import { getDateFormatter, parseMetricValue } from '../utils';
 
@@ -112,14 +113,25 @@ export default function transformProps(
   const metricColtypeIndex = colnames.findIndex(name => name === metricName);
   const metricColtype =
     metricColtypeIndex > -1 ? coltypes[metricColtypeIndex] : null;
-
   if (data.length > 0) {
     const sortedData = (data as BigNumberDatum[])
       .map(d => [d[timeColumn], parseMetricValue(d[metricName])])
       // sort in time descending order
-      .sort((a, b) => (a[0] !== null && b[0] !== null ? b[0] - a[0] : 0));
-
-    bigNumber = sortedData[0][1];
+      .sort((a, b) => (a[0] !== null && b[0] !== null ? b[0] - a[0] : 0))
+      .map(
+        bn_datum => {
+          if (typeof(bn_datum[1]) === 'object') {
+            // @ts-ignore
+            bn_datum[1] = Number(`${bn_datum[1].c[0]}.${bn_datum[1].c[1].toString().slice(0, 4)}`)
+          } else {
+            bn_datum[1] = bn_datum[1]
+          }
+          return bn_datum
+        }
+      );
+    bigNumber = sum(sortedData.map(
+      bn_datum => bn_datum[1]
+    ));
     timestamp = sortedData[0][0];
 
     if (bigNumber === null) {
